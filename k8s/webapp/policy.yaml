@@ -75,6 +75,12 @@ spec:
     - ports:
         - protocol: TCP
           port: 8080
+    # Allow kubelet → Istio pilot-agent health-check port.
+    # Istio rewrites httpGet probes to port 15020; without this rule the
+    # rewritten liveness/readiness probes are silently dropped.
+    - ports:
+        - protocol: TCP
+          port: 15020
   egress:
     # Allow DNS
     - ports:

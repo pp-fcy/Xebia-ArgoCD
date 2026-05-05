@@ -23,6 +23,11 @@ spec:
       labels:
         app: fincore-app
         version: v1
+      annotations:
+        # Hold the app container until the Istio proxy (Envoy) is fully ready.
+        # Without this, the kubelet fires the liveness probe while iptables rules
+        # are still being set up → port 8080 appears closed → connection refused.
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
     spec:
       topologySpreadConstraints:
         - maxSkew: 1
@@ -66,7 +71,7 @@ spec:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 5
+            initialDelaySeconds: 15
             periodSeconds: 10
             failureThreshold: 3
             timeoutSeconds: 3
@@ -76,7 +81,7 @@ spec:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 3
+            initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 2
             timeoutSeconds: 3
