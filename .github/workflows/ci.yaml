@@ -26,8 +26,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   IMAGE_NAME: fincore-hello
   GHCR_REGISTRY: ghcr.io
-  IMAGE_LATEST: ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
-  IMAGE_SHA: ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
 
 permissions:
   contents: write
@@ -60,6 +58,13 @@ jobs:
       image_tag: sha-${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Compute image tags
+        run: |
+          {
+            echo "IMAGE_LATEST=${GHCR_REGISTRY}/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}:latest"
+            echo "IMAGE_SHA=${GHCR_REGISTRY}/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}:sha-${GITHUB_SHA}"
+          } >> "$GITHUB_ENV"
 
       # QEMU lets the amd64 CI runner cross-compile for arm64 (Apple Silicon kind).
       - name: Set up QEMU
@@ -115,9 +120,10 @@ jobs:
     name: QA Tests
     runs-on: ubuntu-latest
     needs: build
-    env:
-      IMAGE: ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
     steps:
+      - name: Compute image tag
+        run: echo "IMAGE=${GHCR_REGISTRY}/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
