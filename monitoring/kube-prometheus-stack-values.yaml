@@ -31,6 +31,17 @@ prometheus:
     serviceMonitorSelector: {}
     serviceMonitorNamespaceSelector: {}
     retention: 24h
+    # Bind to the local-storage PV defined in k8s/storage/prometheus-storage.yaml.
+    # Uses hostPath inside the kind node container — data survives pod restarts
+    # for the lifetime of the kind cluster.
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-storage
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
     resources:
       requests:
         memory: 400Mi
