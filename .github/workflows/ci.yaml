@@ -9,6 +9,9 @@
 # Required GitHub Secrets:
 #   GH_PAT  — (optional) GitHub Personal Access Token with repo write scope.
 #             If not set, we fall back to GITHUB_TOKEN (requires contents: write).
+#   GHCR_PAT — (optional) GitHub Personal Access Token with write:packages scope.
+#             Useful if your repository's Actions workflow permissions are read-only
+#             or your org restricts package publishing via GITHUB_TOKEN.
 
 name: CI
 
@@ -23,6 +26,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   IMAGE_NAME: fincore-hello
   GHCR_REGISTRY: ghcr.io
+  IMAGE_LATEST: ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+  IMAGE_SHA: ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
 
 permissions:
   contents: write
@@ -69,8 +74,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Build image — push multi-platform to GHCR
         uses: docker/build-push-action@v6
@@ -79,15 +84,27 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            ${{ env.IMAGE_LATEST }}
+            ${{ env.IMAGE_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Build summary
+        if: always()
+        run: |
+          {
+            echo "## Build"
+            echo ""
+            echo "- Repo: \`${GITHUB_REPOSITORY}\`"
+            echo "- Image (latest): \`${{ env.IMAGE_LATEST }}\`"
+            echo "- Image (sha): \`${{ env.IMAGE_SHA }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@v0.35.0
         with:
-          image-ref: ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          image-ref: ${{ env.IMAGE_SHA }}
           format: table
           exit-code: "1"
           severity: HIGH,CRITICAL
@@ -105,8 +122,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Pull image from GHCR
         run: docker pull ${{ env.IMAGE }}
